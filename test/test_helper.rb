@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require "simplecov"
+SimpleCov.start "rails" do
+  minimum_coverage 90
+end
+
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
@@ -7,7 +12,9 @@ require "rails/test_help"
 module ActiveSupport
   class TestCase
     # Run tests in parallel with specified workers
-    parallelize(workers: :number_of_processors)
+    parallelize(workers: :number_of_processors) do |worker|
+      SimpleCov.command_name "#{SimpleCov.command_name}-#{worker}"
+    end
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
