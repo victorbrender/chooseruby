@@ -67,4 +67,22 @@ class GithubAvatarServiceTest < ActiveSupport::TestCase
 
     assert_equal "https://github.com/dhh.png", author.reload.avatar_url
   end
+
+  test "integration: author does not fetch avatar when github_url is blank on change" do
+    author = Author.create!(name: "Blank Github Author", github_url: "")
+
+    assert_nil author.reload.avatar_url
+  end
+
+  test "integration: author avatar_url stays nil when service cannot resolve a username" do
+    author = Author.create!(name: "Non Github Author", github_url: "https://example.com/notgithub")
+
+    assert_nil author.reload.avatar_url
+  end
+
+  test "rescues and returns nil when github_url does not respond to match" do
+    avatar_url = GithubAvatarService.call(12345)
+
+    assert_nil avatar_url
+  end
 end

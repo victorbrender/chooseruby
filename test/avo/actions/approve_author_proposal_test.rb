@@ -56,6 +56,65 @@ class Avo::Actions::ApproveAuthorProposalTest < ActiveSupport::TestCase
     assert_not action.visible?
   end
 
+  test "approve action is visible on the index view with no record selected" do
+    action = Avo::Actions::ApproveAuthorProposal.new(record: nil, resource: nil, user: nil, view: :index)
+
+    assert action.visible?
+  end
+
+  test "approve action reports an error when a proposal fails to approve" do
+    author = Author.create!(name: "Yukihiro Matsumoto", status: :approved)
+    # Bypasses the proposal's own bio length validation so that it's the
+    # *author's* save that fails inside approve!, exercising the rescue path.
+    proposal = AuthorProposal.new(
+      author: author,
+      bio_text: "x" * 501,
+      submitter_email: "user@example.com",
+      status: :pending
+    )
+    proposal.save!(validate: false)
+
+    action = Avo::Actions::ApproveAuthorProposal.new(record: proposal, resource: nil, user: nil, view: :index)
+    action.handle(records: [ proposal ], fields: {}, current_user: nil, resource: nil)
+
+    assert_equal "pending", proposal.reload.status
+  end
+
+  test "approve action is visible on the show view for a specific record" do
+    proposal = AuthorProposal.new
+    action = Avo::Actions::ApproveAuthorProposal.new(record: proposal, resource: nil, user: nil, view: :show)
+
+    # record&.pending? on a non-persisted, non-nil record still exercises
+    # the safe-navigation "record is present" path (as opposed to the
+    # `view == :index && !record` early return).
+    assert action.visible?
+  end
+
+  test "approve action is not visible on the show view with no record selected" do
+    # view != :index here, so this reaches `record&.pending?` with record
+    # nil -- the safe-navigation "record is absent" path.
+    action = Avo::Actions::ApproveAuthorProposal.new(record: nil, resource: nil, user: nil, view: :show)
+
+    assert_not action.visible?
+  end
+
+  test "approve action reports an error via the generic rescue when the author no longer exists" do
+    author = Author.create!(name: "Soon Deleted Author", status: :approved)
+    proposal = AuthorProposal.create!(
+      author: author,
+      bio_text: "Some bio",
+      submitter_email: "user@example.com",
+      status: :pending
+    )
+    author.destroy! # cascades: the proposal row is gone, but this in-memory object still has the old author_id
+
+    action = Avo::Actions::ApproveAuthorProposal.new(record: proposal, resource: nil, user: nil, view: :index)
+
+    assert_nothing_raised do
+      action.handle(records: [ proposal ], fields: {}, current_user: nil, resource: nil)
+    end
+  end
+
   test "approve action handles multiple proposals correctly" do
     author1 = Author.create!(name: "Yukihiro Matsumoto", status: :approved)
     proposal1 = AuthorProposal.create!(

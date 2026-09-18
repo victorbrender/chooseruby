@@ -140,4 +140,27 @@ class CategoryTest < ActiveSupport::TestCase
 
     assert_equal 2, featured.size
   end
+
+  test "generate_slug appends a counter when the base slug is already taken" do
+    Category.create!(name: "Zzz Slug Collision")
+    colliding = Category.create!(name: "Zzz Slug Collision!!!")
+
+    assert_equal "zzz-slug-collision-1", colliding.slug
+  end
+
+  test "generate_slug does not run when name is unchanged and slug is present" do
+    category = Category.create!(name: "Stable Category", slug: "stable-category")
+
+    category.update!(description: "Updated description")
+
+    assert_equal "stable-category", category.reload.slug
+  end
+
+  test "generate_slug regenerates the slug when name changes" do
+    category = Category.create!(name: "Old Name")
+
+    category.update!(name: "New Name")
+
+    assert_equal "new-name", category.reload.slug
+  end
 end

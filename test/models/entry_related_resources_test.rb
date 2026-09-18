@@ -110,6 +110,27 @@ class EntryRelatedResourcesTest < ActiveSupport::TestCase
     assert_equal 2, cat3_count, "Should have 2 resources from category3"
   end
 
+  test "stops iterating categories once the limit is already satisfied" do
+    # 2 entries per category is enough to hit a limit of 4 after only the
+    # first two of the three categories, so the loop must break before
+    # ever considering the third.
+    [ @category1, @category2, @category3 ].each_with_index do |category, cat_index|
+      2.times do |i|
+        entry = Entry.create!(
+          title: "Cat#{cat_index} Resource #{i}",
+          url: "https://example.com/break-cat#{cat_index}-#{i}",
+          published: true,
+          status: :approved
+        )
+        entry.categories << category
+      end
+    end
+
+    related = @main_entry.related_resources(limit: 4)
+
+    assert_equal 4, related.length
+  end
+
   test "handles entry with single category correctly" do
     # Create an entry with only one category
     single_cat_entry = Entry.create!(

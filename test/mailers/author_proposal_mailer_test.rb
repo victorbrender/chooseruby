@@ -99,6 +99,47 @@ class AuthorProposalMailerTest < ActionMailer::TestCase
     assert_match(/review|business days|team/i, email.text_part.body.to_s)
   end
 
+  test "submission_confirmation works for a new-author proposal with no author yet" do
+    proposal = AuthorProposal.create!(
+      author_name: "Brand New Author",
+      submitter_email: "brandnew@example.com"
+    )
+
+    email = AuthorProposalMailer.submission_confirmation(proposal)
+
+    assert_emails 1 do
+      email.deliver_now
+    end
+
+    assert_equal [ "brandnew@example.com" ], email.to
+  end
+
+  test "rejection_notification works for a new-author proposal with no author yet" do
+    proposal = AuthorProposal.create!(
+      author_name: "Rejected New Author",
+      submitter_email: "rejected-new@example.com"
+    )
+
+    email = AuthorProposalMailer.rejection_notification(proposal)
+
+    assert_emails 1 do
+      email.deliver_now
+    end
+
+    assert_equal [ "rejected-new@example.com" ], email.to
+  end
+
+  test "approval_notification requires the proposal to already have an author assigned" do
+    proposal = AuthorProposal.create!(
+      author_name: "Not Yet Approved",
+      submitter_email: "not-yet@example.com"
+    )
+
+    assert_raises(NoMethodError) do
+      AuthorProposalMailer.approval_notification(proposal).deliver_now
+    end
+  end
+
   test "approval_notification thanks submitter for contribution" do
     author = Author.create!(name: "DHH", slug: "dhh")
     proposal = AuthorProposal.create!(

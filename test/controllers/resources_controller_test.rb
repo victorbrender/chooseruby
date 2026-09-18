@@ -183,4 +183,56 @@ class ResourcesControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2", text: /Related resources/
     assert_select "a", text: "Category Related Entry"
   end
+
+  test "related resources section is satisfied entirely by same-category matches" do
+    category = Category.find_or_create_by!(name: "Testing") { |c| c.slug = "testing" }
+
+    entry = Entry.create!(
+      title: "Popular Related Entry",
+      url: "https://example.com/popular-related",
+      published: true,
+      status: :approved
+    )
+    entry.categories << category
+
+    5.times do |i|
+      related_entry = Entry.create!(
+        title: "Same Category Entry #{i}",
+        url: "https://example.com/same-category-#{i}",
+        published: true,
+        status: :approved
+      )
+      related_entry.categories << category
+    end
+
+    get "/resources/#{entry.slug}"
+
+    assert_response :success
+    assert_select "h2", text: /Related resources/
+  end
+
+  test "index renders the directory with default filters" do
+    ruby_gem = RubyGem.create!(gem_name: "index-gem")
+    Entry.create!(
+      title: "Index Gem", url: "https://example.com/index-gem",
+      entryable: ruby_gem, status: :approved, published: true, featured_at: Time.current
+    )
+
+    get "/resources"
+
+    assert_response :success
+  end
+
+  test "index applies query, level, type, and sort filters" do
+    ruby_gem = RubyGem.create!(gem_name: "filtered-gem")
+    Entry.create!(
+      title: "Filtered Gem", url: "https://example.com/filtered-gem",
+      entryable: ruby_gem, status: :approved, published: true,
+      experience_level: :beginner
+    )
+
+    get "/resources", params: { q: "filtered", level: "beginner", type: "gems", sort: "newest" }
+
+    assert_response :success
+  end
 end

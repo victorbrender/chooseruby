@@ -66,4 +66,23 @@ class ResourceTypeHelperTest < ActionView::TestCase
   test "type_emoji falls back to default emoji for unknown types" do
     assert_equal "📦", type_emoji("unknown-type")
   end
+
+  test "type_description falls back to a generated description for unknown types" do
+    assert_equal "curated unknown-type for Ruby developers", type_description("unknown-type")
+  end
+
+  test "submission_message_for_type handles development-environments" do
+    message = submission_message_for_type("development-environments")
+    assert_includes message, "Know a great Ruby development environment?"
+  end
+
+  test "submission_message_for_type handles job-boards" do
+    message = submission_message_for_type("job-boards")
+    assert_includes message, "Know a great Ruby job board?"
+  end
+
+  test "submission_message_for_type handles documentations" do
+    message = submission_message_for_type("documentations")
+    assert_includes message, "Know a great Ruby documentation?"
+  end
 end

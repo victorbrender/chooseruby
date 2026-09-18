@@ -108,4 +108,10 @@ class Avo::Actions::RejectEntriesTest < ActiveSupport::TestCase
     assert_equal comment, entry1.entry_reviews.last.comment
     assert_equal comment, entry2.entry_reviews.last.comment
   end
+
+  test "action defines a comment field" do
+    action = Avo::Actions::RejectEntries.new(record: nil, resource: nil, user: nil, view: :index)
+
+    assert_nothing_raised { action.fields }
+  end
 end

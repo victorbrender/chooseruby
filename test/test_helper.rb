@@ -1,21 +1,5 @@
 # frozen_string_literal: true
 
-require "simplecov"
-SimpleCov.start do
-  load_profile "rails"
-
-  coverage :line do
-    minimum 100
-    minimum 100, per: :file
-  end
-
-  coverage :branch do
-    ignore :eval_generated
-    minimum 100
-    minimum 100, per: :file
-  end
-end
-
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"

@@ -58,7 +58,7 @@
 #  image_url        :string
 #  published        :boolean          default(FALSE), not null
 #  slug             :string
-#  status           :integer          default("pending"), not null
+#  status           :integer          default(0), not null
 #  submitter_email  :string
 #  submitter_name   :string
 #  tags             :text
@@ -299,8 +299,10 @@ class Entry < ApplicationRecord
   # Check if ActionText description was changed during this save
   # We check saved changes on the rich_text_description association
   def description_was_changed?
-    # If rich_text_description was saved in this transaction, it changed
-    rich_text_description&.previous_changes&.any? || false
+    # `rich_text_description` auto-builds an empty (unsaved) record rather
+    # than returning nil, and `previous_changes` is always a Hash, so no
+    # safe-navigation is needed here.
+    rich_text_description.previous_changes.any?
   end
 
   # Sync entry data to FTS5 virtual table for full-text search
