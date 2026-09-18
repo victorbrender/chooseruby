@@ -298,4 +298,85 @@ class EntriesControllerTest < ActionDispatch::IntegrationTest
     # Should NOT find beginner routing entry (filtered by search query)
     assert_select "h3", text: "Rails Routing for Beginners", count: 0
   end
+
+  test "GET index renders the full directory" do
+    ruby_gem = RubyGem.create!(gem_name: "index-controller-gem")
+    Entry.create!(
+      title: "Index Controller Gem", url: "https://example.com/index-controller-gem",
+      entryable: ruby_gem, status: :approved, published: true
+    )
+
+    get entries_path
+
+    assert_response :success
+  end
+
+  test "GET suggestions returns ok with no body for a query shorter than 2 characters" do
+    get entries_suggestions_path, params: { q: "a" }
+
+    assert_response :success
+    assert_empty response.body
+  end
+
+  test "GET suggestions renders matching categories, types, and entries" do
+    Category.find_or_create_by!(name: "Testing") { |c| c.slug = "testing" }
+    ruby_gem = RubyGem.create!(gem_name: "testing-suggestion-gem")
+    Entry.create!(
+      title: "Testing Suggestion Gem", url: "https://example.com/testing-suggestion-gem",
+      entryable: ruby_gem, status: :approved, published: true
+    )
+
+    get entries_suggestions_path, params: { q: "test" }
+
+    assert_response :success
+  end
+
+  test "POST create ignores an author_id that does not match a real author" do
+    assert_difference("Entry.count", 1) do
+      post entries_path, params: {
+        entry: {
+          title: "No Real Author",
+          url: "https://example.com/no-real-author",
+          description: "Test description",
+          submitter_email: "submitter@example.com",
+          resource_type: "RubyGem",
+          gem_name: "no-real-author-gem",
+          author_id: 999_999
+        }
+      }
+    end
+
+    assert_empty Entry.last.authors
+  end
+
+  test "POST create raises for an unknown resource_type" do
+    assert_raises(ArgumentError) do
+      post entries_path, params: {
+        entry: {
+          title: "Mystery Resource",
+          url: "https://example.com/mystery",
+          resource_type: "NotARealType"
+        }
+      }
+    end
+  end
+
+  test "POST create with Course type omitting price does not set price_cents" do
+    assert_difference("Entry.count", 1) do
+      post entries_path, params: {
+        entry: {
+          title: "Free Course",
+          url: "https://example.com/free-course",
+          description: "A free course",
+          submitter_email: "free-course@example.com",
+          resource_type: "Course",
+          platform: "Udemy",
+          is_free: "1"
+        }
+      }
+    end
+
+    entry = Entry.order(:id).last
+    assert_nil entry.entryable.price_cents
+  end
 end

@@ -117,4 +117,18 @@ class AuthorSearchQueryTest < ActiveSupport::TestCase
       query.call.to_a
     end
   end
+
+  test "drops words that are made entirely of stripped special characters" do
+    query = AuthorSearchQuery.new({ q: "David ---" })
+
+    assert_nothing_raised do
+      query.call.to_a
+    end
+  end
+
+  test "sanitize_fts_query returns an empty string for blank input" do
+    query = AuthorSearchQuery.new({ q: "David" })
+
+    assert_equal "", query.send(:sanitize_fts_query, "")
+  end
 end

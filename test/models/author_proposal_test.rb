@@ -14,7 +14,7 @@
 #  original_resource_url :text
 #  resource_url          :text
 #  reviewed_at           :datetime
-#  status                :integer          default("pending"), not null
+#  status                :integer          default(0), not null
 #  submission_notes      :text
 #  submitter_email       :string           not null
 #  submitter_name        :string
@@ -34,8 +34,8 @@
 #
 # Foreign Keys
 #
-#  author_id         (author_id => authors.id) ON DELETE => cascade
-#  matched_entry_id  (matched_entry_id => entries.id) ON DELETE => nullify
+#  fk_rails_...  (author_id => authors.id) ON DELETE => cascade
+#  fk_rails_...  (matched_entry_id => entries.id) ON DELETE => nullify
 #
 require "test_helper"
 
@@ -584,5 +584,93 @@ class AuthorProposalTest < ActiveSupport::TestCase
       submitter_email: "test@example.com"
     )
     assert_not proposal.matched_entry?
+  end
+
+  test "reject! raises when given a blank admin_comment" do
+    proposal = AuthorProposal.create!(author: @author, bio_text: "Bio", submitter_email: "test@example.com")
+
+    assert_raises(ArgumentError) do
+      proposal.reject!(admin_comment: "")
+    end
+  end
+
+  test "is invalid when link_updates includes a field that isn't a recognized link" do
+    proposal = AuthorProposal.new(
+      author: @author,
+      link_updates: { "not_a_real_field" => "https://example.com" },
+      submitter_email: "test@example.com"
+    )
+
+    assert_not proposal.valid?
+    assert_includes proposal.errors[:link_updates], "not_a_real_field is not a valid link field"
+  end
+
+  test "skips blank values in link_updates during validation and approval" do
+    proposal = AuthorProposal.create!(
+      author: @author,
+      link_updates: { "github_url" => "", "website_url" => "https://example.com" },
+      submitter_email: "test@example.com"
+    )
+
+    assert proposal.approve!
+    assert_equal "https://example.com", @author.reload.website_url
+  end
+
+  test "approve! raises for a link_updates field that bypassed validation" do
+    proposal = AuthorProposal.new(
+      author: @author,
+      submitter_email: "test@example.com"
+    )
+    proposal.save!(validate: false)
+    proposal.update_column(:link_updates, { "not_a_real_field" => "https://example.com" })
+
+    assert_raises(ArgumentError) do
+      proposal.approve!
+    end
+  end
+
+  test "approve! is idempotent when the EntriesAuthor association already exists" do
+    entry = Entry.create!(
+      title: "Existing Association Entry",
+      url: "https://example.com/existing-association",
+      status: :approved,
+      published: true,
+      submitter_email: "creator@example.com"
+    )
+    EntriesAuthor.create!(author: @author, entry: entry)
+
+    proposal = AuthorProposal.create!(
+      author: @author,
+      resource_url: "https://example.com/existing-association",
+      submitter_email: "test@example.com"
+    )
+
+    assert_no_difference "EntriesAuthor.count" do
+      assert proposal.approve!
+    end
+  end
+
+  test "normalize_and_match_resource_url does nothing when resource_url is blank" do
+    proposal = AuthorProposal.new(author: @author, submitter_email: "test@example.com")
+
+    assert_nothing_raised do
+      proposal.send(:normalize_and_match_resource_url)
+    end
+    assert_nil proposal.original_resource_url
+  end
+
+  test "normalize_url returns nil for blank input" do
+    proposal = AuthorProposal.new(author: @author, submitter_email: "test@example.com")
+
+    assert_nil proposal.send(:normalize_url, "")
+  end
+
+  test "match_entry_by_url does nothing when resource_url is blank" do
+    proposal = AuthorProposal.new(author: @author, submitter_email: "test@example.com")
+
+    assert_nothing_raised do
+      proposal.send(:match_entry_by_url)
+    end
+    assert_nil proposal.matched_entry_id
   end
 end

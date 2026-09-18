@@ -3,6 +3,11 @@
 require "test_helper"
 
 class ApplicationHelperTest < ActionView::TestCase
+  test "breadcrumbs returns an empty string when items are blank" do
+    assert_equal "", breadcrumbs(nil)
+    assert_equal "", breadcrumbs([])
+  end
+
   test "breadcrumbs renders navigation with chevron separators" do
     items = [
       { text: "Home", url: "/" },

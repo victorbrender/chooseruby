@@ -89,4 +89,7 @@ group :test do
 
   # CGI library for HTML unescaping (required for Ruby 4.0+)
   gem "cgi"
+
+  # Code coverage reporting
+  gem "simplecov", require: false
 end

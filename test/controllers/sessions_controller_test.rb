@@ -75,4 +75,31 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     delete session_url
     assert_redirected_to root_path
   end
+
+  test "DELETE destroy works when there is no active session" do
+    delete session_url
+    assert_redirected_to root_path
+  end
+
+  test "requests with a cookie that matches no session are treated as anonymous" do
+    post session_url, params: { email_address: "admin@test.com", password: "password" }
+    assert cookies[:session_token].present?
+
+    # The signed cookie from login is still valid, but nothing matches it now.
+    Session.delete_all
+
+    get "/"
+
+    assert_response :success
+  end
+
+  test "requests with an expired session's cookie are treated as anonymous" do
+    post session_url, params: { email_address: "admin@test.com", password: "password" }
+
+    Session.last.update_column(:last_active_at, 31.days.ago)
+
+    get "/"
+
+    assert_response :success
+  end
 end

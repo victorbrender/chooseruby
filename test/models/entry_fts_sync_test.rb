@@ -244,6 +244,25 @@ class EntryFtsSyncTest < ActiveSupport::TestCase
     assert_equal original_result["tags"], updated_result["tags"]
   end
 
+  test "does not sync to FTS when updating an unrelated field on an entry with no description" do
+    gem = RubyGem.create!(gem_name: "no-description-gem", rubygems_url: "https://rubygems.org/gems/no-description-gem")
+    entry = Entry.create!(
+      title: "No Description Entry",
+      url: "https://example.com/no-description",
+      entryable: gem,
+      status: :approved,
+      published: true
+    )
+
+    # `rich_text_description` auto-vivifies an unsaved, empty RichText record
+    # rather than returning nil, but it has no previous_changes to report.
+    assert_not entry.rich_text_description.persisted?
+
+    assert_nothing_raised do
+      entry.update!(published: false)
+    end
+  end
+
   private
 
   # Create FTS5 tables if they don't exist

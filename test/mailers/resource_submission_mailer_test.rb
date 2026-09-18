@@ -324,4 +324,47 @@ class ResourceSubmissionMailerTest < ActionMailer::TestCase
     assert_match "Community", html_body
     assert_match "Ruby Community", text_body
   end
+
+  test "rejection_notification handles an entry with no review at all" do
+    ruby_gem = RubyGem.create!(gem_name: "no-review-gem")
+    entry = Entry.create!(
+      title: "No Review Gem",
+      url: "https://example.com/no-review-gem",
+      entryable: ruby_gem,
+      submitter_email: "member@example.com",
+      status: :rejected
+    )
+
+    email = ResourceSubmissionMailer.rejection_notification(entry)
+
+    assert_emails 1 do
+      email.deliver_now
+    end
+  end
+
+  test "notify_team uses selected_categories when the submission responds to it" do
+    require "delegate"
+
+    ruby_gem = RubyGem.create!(gem_name: "selected-categories-gem")
+    entry = Entry.create!(
+      title: "Selected Categories Gem",
+      url: "https://example.com/selected-categories-gem",
+      entryable: ruby_gem,
+      submitter_email: "member@example.com"
+    )
+    category = Category.find_or_create_by!(name: "Testing") { |c| c.slug = "testing" }
+
+    submission_class = Class.new(SimpleDelegator) do
+      define_method(:selected_categories) { [ category ] }
+    end
+    submission = submission_class.new(entry)
+
+    email = ResourceSubmissionMailer.notify_team(submission)
+
+    assert_emails 1 do
+      email.deliver_now
+    end
+
+    assert_match "Testing", email.html_part.body.to_s
+  end
 end

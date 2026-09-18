@@ -150,13 +150,13 @@ class Avo::Resources::AuthorProposal < Avo::BaseResource
               if record.has_link_updates?
                 summary << "\nLink Updates:"
                 record.link_updates.each do |field, url|
-                  current_value = record.author&.send(field) if record.author
+                  current_value = record.author.send(field) if record.author
                   summary << "  - #{field}: #{current_value.presence || '(blank)'} → #{url}"
                 end
               end
 
               if record.bio_text.present?
-                current_bio = record.author&.bio if record.author
+                current_bio = record.author.bio if record.author
                 summary << "\nBio:"
                 summary << "  Current: #{current_bio.presence || '(blank)'}"
                 summary << "  Proposed: #{record.bio_text}"

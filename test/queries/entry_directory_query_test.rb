@@ -120,6 +120,20 @@ class EntryDirectoryQueryTest < ActiveSupport::TestCase
     assert_includes results, entry, "Should handle special chars in query"
   end
 
+  test "drops words that are made entirely of stripped special characters" do
+    query = EntryDirectoryQuery.new({ q: "rails ---" })
+
+    assert_nothing_raised do
+      query.call.to_a
+    end
+  end
+
+  test "sanitize_fts_query returns an empty string for blank input" do
+    query = EntryDirectoryQuery.new({ q: "rails" })
+
+    assert_equal "", query.send(:sanitize_fts_query, "")
+  end
+
   # Test 4b: Handles apostrophes without FTS5 syntax errors
   test "sanitizes apostrophes in query" do
     gem = RubyGem.create!(gem_name: "entry-guide", rubygems_url: "https://rubygems.org/gems/entry-guide")
@@ -348,6 +362,69 @@ class EntryDirectoryQueryTest < ActiveSupport::TestCase
     # High relevance gem entry should come first
     assert_equal high_relevance.id, results.first.id, "Should maintain FTS5 relevance with type filter"
     assert_includes results, @entry2, "Should include other gem matching search"
+  end
+
+  test "ignores an unrecognized level parameter" do
+    query = EntryDirectoryQuery.new({ level: "expert" })
+    results = query.call.to_a
+
+    assert_includes results, @entry1
+    assert_includes results, @entry2
+  end
+
+  test "sort=recent orders by updated_at when there is no search query" do
+    query = EntryDirectoryQuery.new({ sort: "recent" })
+    results = query.call.to_a
+
+    assert_equal results, results.sort_by(&:updated_at).reverse
+  end
+
+  test "sort=newest keeps FTS5 relevance ordering when a search query is present" do
+    query = EntryDirectoryQuery.new({ sort: "newest", q: "rails" })
+    results = query.call.to_a
+
+    assert_includes results, @entry1
+  end
+
+  test "sort=popular orders by the entryable's popularity metric" do
+    @gem1.update!(downloads_count: 100)
+    @gem2.update!(downloads_count: 500)
+
+    query = EntryDirectoryQuery.new({ sort: "popular" })
+    results = query.call.to_a
+
+    assert_equal @entry2.id, results.first.id
+  end
+
+  test "sort=oldest orders by updated_at ascending" do
+    query = EntryDirectoryQuery.new({ sort: "oldest" })
+    results = query.call.to_a
+
+    assert_equal results, results.sort_by(&:updated_at)
+  end
+
+  test "sort=beginner_first orders beginner entries ahead of other levels" do
+    @entry1.update!(experience_level: :advanced)
+    @entry2.update!(experience_level: :beginner)
+
+    query = EntryDirectoryQuery.new({ sort: "beginner_first" })
+    results = query.call.to_a
+
+    assert_equal @entry2.id, results.first.id
+  end
+
+  test "an unrecognized sort value falls back to the default ordering" do
+    query = EntryDirectoryQuery.new({ sort: "not-a-real-sort" })
+    results = query.call.to_a
+
+    assert_equal results, results.sort_by(&:updated_at).reverse
+  end
+
+  test "an unrecognized sort value keeps FTS5 relevance ordering when searching" do
+    query = EntryDirectoryQuery.new({ sort: "not-a-real-sort", q: "rails" })
+    results = query.call.to_a
+
+    assert_includes results, @entry1
   end
 
   private
